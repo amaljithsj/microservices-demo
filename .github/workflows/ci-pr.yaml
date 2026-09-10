@@ -100,9 +100,9 @@ jobs:
       - name: Set Docker build context
         run: |
           if [ "${{ matrix.service }}" = "cartservice" ]; then
-            echo "DOCKER_CONTEXT=./src/cartservice/src" >> "$GITHUB_ENV"
+            echo "BUILD_CONTEXT=./src/cartservice/src" >> "$GITHUB_ENV"
           else
-            echo "DOCKER_CONTEXT=./src/${{ matrix.service }}" >> "$GITHUB_ENV"
+            echo "BUILD_CONTEXT=./src/${{ matrix.service }}" >> "$GITHUB_ENV"
           fi
 
       - name: Build ${{ matrix.service }}
