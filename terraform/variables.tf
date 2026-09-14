@@ -12,36 +12,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-variable "gcp_project_id" {
+variable "aws_region" {
   type        = string
-  description = "The GCP project ID to apply this config to"
+  description = "AWS region in which the infrastructure will be created"
+  default     = "ap-south-1"
 }
 
-variable "name" {
+variable "cluster_name" {
   type        = string
-  description = "Name given to the new GKE cluster"
+  description = "Name of the EKS cluster"
   default     = "online-boutique"
 }
 
-variable "region" {
+variable "vpc_cidr" {
   type        = string
-  description = "Region of the new GKE cluster"
-  default     = "us-central1"
+  description = "CIDR block for the VPC"
+  default     = "10.0.0.0/16"
 }
 
-variable "namespace" {
-  type        = string
-  description = "Kubernetes Namespace in which the Online Boutique resources are to be deployed"
-  default     = "default"
+variable "availability_zones" {
+  type        = list(string)
+  description = "Availability zones used by the VPC"
+  default     = ["ap-south-1a", "ap-south-1b"]
 }
 
-variable "filepath_manifest" {
-  type        = string
-  description = "Path to Online Boutique's Kubernetes resources, written using Kustomize"
-  default     = "../kustomize/"
+variable "public_subnet_cidrs" {
+  type        = list(string)
+  description = "CIDR blocks for public subnets"
+  default     = ["10.0.1.0/24", "10.0.2.0/24"]
 }
 
-variable "memorystore" {
-  type        = bool
-  description = "If true, Online Boutique's in-cluster Redis cache will be replaced with a Google Cloud Memorystore Redis cache"
+variable "private_subnet_cidrs" {
+  type        = list(string)
+  description = "CIDR blocks for private subnets"
+  default     = ["10.0.11.0/24", "10.0.12.0/24"]
+}
+
+variable "node_instance_types" {
+  type        = list(string)
+  description = "EC2 instance types used by the EKS managed node group"
+  default     = ["t3.medium"]
+}
+
+variable "node_desired_size" {
+  type        = number
+  description = "Desired number of EKS worker nodes"
+  default     = 2
+}
+
+variable "node_min_size" {
+  type        = number
+  description = "Minimum number of EKS worker nodes"
+  default     = 1
+}
+
+variable "node_max_size" {
+  type        = number
+  description = "Maximum number of EKS worker nodes"
+  default     = 3
 }

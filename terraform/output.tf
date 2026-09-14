@@ -12,12 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-output "cluster_location" {
-  description = "Location of the cluster"
-  value       = resource.google_container_cluster.my_cluster.location
+output "vpc_id" {
+  description = "ID of the VPC"
+  value       = aws_vpc.main.id
 }
 
-output "cluster_name" {
-  description = "Name of the cluster"
-  value       = resource.google_container_cluster.my_cluster.name
+output "public_subnet_ids" {
+  description = "IDs of the public subnets"
+  value       = aws_subnet.public[*].id
+}
+
+output "private_subnet_ids" {
+  description = "IDs of the private subnets"
+  value       = aws_subnet.private[*].id
+}
+
+output "nat_gateway_id" {
+  description = "ID of the NAT Gateway"
+  value       = aws_nat_gateway.main.id
+}
+
+output "eks_cluster_name" {
+  description = "Name of the EKS cluster"
+  value       = aws_eks_cluster.main.name
+}
+
+output "eks_cluster_endpoint" {
+  description = "Kubernetes API endpoint for the EKS cluster"
+  value       = aws_eks_cluster.main.endpoint
 }

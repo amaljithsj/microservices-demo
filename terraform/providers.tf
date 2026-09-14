@@ -14,14 +14,15 @@
 
 terraform {
   required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "7.46.0"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
     }
   }
+
+  required_version = ">= 1.6.0"
 }
 
-provider "google" {
-  project = var.gcp_project_id
-  region  = var.region
+provider "aws" {
+  region = var.aws_region
 }
