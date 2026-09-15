@@ -41,3 +41,11 @@ output "eks_cluster_endpoint" {
   description = "Kubernetes API endpoint for the EKS cluster"
   value       = aws_eks_cluster.main.endpoint
 }
+
+output "ecr_repository_urls" {
+  description = "ECR repository URLs for Online Boutique services"
+  value = {
+    for service, repository in aws_ecr_repository.service :
+    service => repository.repository_url
+  }
+}
