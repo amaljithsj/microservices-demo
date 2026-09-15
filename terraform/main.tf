@@ -12,89 +12,143 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Definition of local variables
-locals {
-  base_apis = [
-    "container.googleapis.com",
-    "monitoring.googleapis.com",
-    "cloudtrace.googleapis.com",
-    "cloudprofiler.googleapis.com"
-  ]
-  memorystore_apis = ["redis.googleapis.com"]
-  cluster_name     = google_container_cluster.my_cluster.name
+# -----------------------------------------------------------------------------
+# VPC
+# -----------------------------------------------------------------------------
+
+resource "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name = "${var.cluster_name}-vpc"
+  }
 }
 
-# Enable Google Cloud APIs
-module "enable_google_apis" {
-  source  = "terraform-google-modules/project-factory/google//modules/project_services"
-  version = "~> 18.0"
+# -----------------------------------------------------------------------------
+# Internet Gateway
+# -----------------------------------------------------------------------------
 
-  project_id                  = var.gcp_project_id
-  disable_services_on_destroy = false
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
 
-  # activate_apis is the set of base_apis and the APIs required by user-configured deployment options
-  activate_apis = concat(local.base_apis, var.memorystore ? local.memorystore_apis : [])
+  tags = {
+    Name = "${var.cluster_name}-igw"
+  }
 }
 
-# Create GKE cluster
-resource "google_container_cluster" "my_cluster" {
+# -----------------------------------------------------------------------------
+# Public subnets
+# Used for internet-facing AWS load balancers and NAT Gateway.
+# -----------------------------------------------------------------------------
 
-  name     = var.name
-  location = var.region
+resource "aws_subnet" "public" {
+  count = length(var.public_subnet_cidrs)
 
-  # Enable autopilot for this cluster
-  enable_autopilot = true
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.public_subnet_cidrs[count.index]
+  availability_zone       = var.availability_zones[count.index]
+  map_public_ip_on_launch = true
 
-  # Set an empty ip_allocation_policy to allow autopilot cluster to spin up correctly
-  ip_allocation_policy {
+  tags = {
+    Name                     = "${var.cluster_name}-public-${count.index + 1}"
+    "kubernetes.io/role/elb" = "1"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Private subnets
+# EKS worker nodes will run here.
+# -----------------------------------------------------------------------------
+
+resource "aws_subnet" "private" {
+  count = length(var.private_subnet_cidrs)
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidrs[count.index]
+  availability_zone = var.availability_zones[count.index]
+
+  tags = {
+    Name                              = "${var.cluster_name}-private-${count.index + 1}"
+    "kubernetes.io/role/internal-elb" = "1"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Public route table
+# Internet Gateway provides internet access.
+# -----------------------------------------------------------------------------
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
   }
 
-  # Avoid setting deletion_protection to false
-  # until you're ready (and certain you want) to destroy the cluster.
-  # deletion_protection = false
-
-  depends_on = [
-    module.enable_google_apis
-  ]
+  tags = {
+    Name = "${var.cluster_name}-public-rt"
+  }
 }
 
-# Get credentials for cluster
-module "gcloud" {
-  source  = "terraform-google-modules/gcloud/google"
-  version = "~> 4.0"
+resource "aws_route_table_association" "public" {
+  count = length(aws_subnet.public)
 
-  platform              = "linux"
-  additional_components = ["kubectl", "beta"]
-
-  create_cmd_entrypoint = "gcloud"
-  # Module does not support explicit dependency
-  # Enforce implicit dependency through use of local variable
-  create_cmd_body = "container clusters get-credentials ${local.cluster_name} --zone=${var.region} --project=${var.gcp_project_id}"
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
 }
 
-# Apply YAML kubernetes-manifest configurations
-resource "null_resource" "apply_deployment" {
-  provisioner "local-exec" {
-    interpreter = ["bash", "-exc"]
-    command     = "kubectl apply -k ${var.filepath_manifest} -n ${var.namespace}"
+# -----------------------------------------------------------------------------
+# NAT Gateway
+#
+# One NAT Gateway is used initially to control AWS cost.
+# A production high-availability setup can use one NAT Gateway per AZ.
+# -----------------------------------------------------------------------------
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name = "${var.cluster_name}-nat-eip"
+  }
+}
+
+resource "aws_nat_gateway" "main" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public[0].id
+
+  tags = {
+    Name = "${var.cluster_name}-nat"
   }
 
   depends_on = [
-    module.gcloud
+    aws_internet_gateway.main
   ]
 }
 
-# Wait condition for all Pods to be ready before finishing
-resource "null_resource" "wait_conditions" {
-  provisioner "local-exec" {
-    interpreter = ["bash", "-exc"]
-    command     = <<-EOT
-    kubectl wait --for=condition=AVAILABLE apiservice/v1beta1.metrics.k8s.io --timeout=180s
-    kubectl wait --for=condition=ready pods --all -n ${var.namespace} --timeout=280s
-    EOT
+# -----------------------------------------------------------------------------
+# Private route table
+# Private subnet traffic reaches the internet through the NAT Gateway.
+# -----------------------------------------------------------------------------
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.main.id
   }
 
-  depends_on = [
-    resource.null_resource.apply_deployment
-  ]
+  tags = {
+    Name = "${var.cluster_name}-private-rt"
+  }
+}
+
+resource "aws_route_table_association" "private" {
+  count = length(aws_subnet.private)
+
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
 }
