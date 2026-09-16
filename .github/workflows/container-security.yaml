@@ -1,0 +1,79 @@
+name: Container Security
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  container-scan:
+    name: Scan ${{ matrix.service }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: adservice
+            dockerfile: src/adservice/Dockerfile
+
+          - service: cartservice
+            dockerfile: src/cartservice/src/Dockerfile
+
+          - service: checkoutservice
+            dockerfile: src/checkoutservice/Dockerfile
+
+          - service: currencyservice
+            dockerfile: src/currencyservice/Dockerfile
+
+          - service: emailservice
+            dockerfile: src/emailservice/Dockerfile
+
+          - service: frontend
+            dockerfile: src/frontend/Dockerfile
+
+          - service: paymentservice
+            dockerfile: src/paymentservice/Dockerfile
+
+          - service: productcatalogservice
+            dockerfile: src/productcatalogservice/Dockerfile
+
+          - service: recommendationservice
+            dockerfile: src/recommendationservice/Dockerfile
+
+          - service: shippingservice
+            dockerfile: src/shippingservice/Dockerfile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build container
+        run: |
+          docker build \
+            -f "${{ matrix.dockerfile }}" \
+            -t "online-boutique/${{ matrix.service }}:${{ github.sha }}" \
+            .
+
+      - name: Scan container with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "online-boutique/${{ matrix.service }}:${{ github.sha }}"
+          format: sarif
+          output: "trivy-${{ matrix.service }}.sarif"
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Upload Trivy results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: "trivy-${{ matrix.service }}.sarif"
