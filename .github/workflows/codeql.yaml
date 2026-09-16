@@ -29,7 +29,7 @@ jobs:
           - language: csharp
             build-mode: none
           - language: java-kotlin
-            build-mode: autobuild
+            build-mode: none
           - language: javascript-typescript
             build-mode: none
           - language: python
