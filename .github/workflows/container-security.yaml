@@ -73,6 +73,15 @@ jobs:
             -t "online-boutique/${{ matrix.service }}:${{ github.sha }}" \
             "${{ matrix.context }}"
 
+      - name: Show Trivy vulnerability report
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "online-boutique/${{ matrix.service }}:${{ github.sha }}"
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+
       - name: Scan container with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
