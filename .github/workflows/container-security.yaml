@@ -1,0 +1,99 @@
+name: Container Security
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  container-scan:
+    name: Scan ${{ matrix.service }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - service: adservice
+            context: ./src/adservice
+            dockerfile: Dockerfile
+
+          - service: cartservice
+            context: ./src/cartservice/src
+            dockerfile: Dockerfile
+
+          - service: checkoutservice
+            context: ./src/checkoutservice
+            dockerfile: Dockerfile
+
+          - service: currencyservice
+            context: ./src/currencyservice
+            dockerfile: Dockerfile
+
+          - service: emailservice
+            context: ./src/emailservice
+            dockerfile: Dockerfile
+
+          - service: frontend
+            context: ./src/frontend
+            dockerfile: Dockerfile
+
+          - service: paymentservice
+            context: ./src/paymentservice
+            dockerfile: Dockerfile
+
+          - service: productcatalogservice
+            context: ./src/productcatalogservice
+            dockerfile: Dockerfile
+
+          - service: recommendationservice
+            context: ./src/recommendationservice
+            dockerfile: Dockerfile
+
+          - service: shippingservice
+            context: ./src/shippingservice
+            dockerfile: Dockerfile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build container
+        run: |
+          docker build \
+            -f "${{ matrix.context }}/${{ matrix.dockerfile }}" \
+            -t "online-boutique/${{ matrix.service }}:${{ github.sha }}" \
+            "${{ matrix.context }}"
+
+      - name: Show Trivy vulnerability report
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "online-boutique/${{ matrix.service }}:${{ github.sha }}"
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+
+      - name: Scan container with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "online-boutique/${{ matrix.service }}:${{ github.sha }}"
+          format: sarif
+          output: "trivy-${{ matrix.service }}.sarif"
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Upload Trivy results
+        if: always() && hashFiles(format('trivy-{0}.sarif', matrix.service)) != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: "trivy-${{ matrix.service }}.sarif"
