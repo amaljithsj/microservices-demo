@@ -30,10 +30,11 @@ COPY . .
 ARG SKAFFOLD_GO_GCFLAGS
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -ldflags="-s -w" -gcflags="${SKAFFOLD_GO_GCFLAGS}" -o /checkoutservice .
 
-FROM gcr.io/distroless/static
+FROM gcr.io/distroless/static-debian13:nonroot
 
 WORKDIR /src
 COPY --from=builder /checkoutservice /src/checkoutservice
+USER 65532:65532
 
 # Definition of this variable is used by 'skaffold debug' to identify a golang binary.
 # Default behavior - a failure prints a stack trace for the current goroutine.
