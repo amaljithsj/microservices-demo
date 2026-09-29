@@ -15,7 +15,7 @@
 # Define a default value so it's not empty if the builder fails to provide it
 ARG BUILDPLATFORM=linux/amd64
 
-FROM --platform=$BUILDPLATFORM python:3.14.7-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4 AS base
+FROM --platform=$BUILDPLATFORM python:3.14.7-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS base
 
 FROM base AS builder
 
@@ -37,8 +37,21 @@ WORKDIR /shoppingassistantservice
 # Grab packages from builder
 COPY --from=builder /usr/local/lib/python3.14/ /usr/local/lib/python3.14/
 
-# Add the application
-COPY . .
+#pip is only required during the build stage
+RUN rm -rf /usr/local/lib/python3.14/site-packages/pip \
+/usr/local/lib/python3.14/site-packages/pip-*.dist-info \
+/usr/local/bin/pip \
+/usr/local/bin/pip3 \
+/usr/local/bin/pip3.14
+
+#Create non-root user
+RUN addgroup --system shoppingassistantservice \
+&& adduser --system --ingroup shoppingassistantservice shoppingassistantservice
+
+#Add the application with correct ownership
+COPY --chown=shoppinassistantservice:shoppinassistantservice . .
+
+USER shoppingassistantservice
 
 # set listen port
 ENV PORT="8080"
