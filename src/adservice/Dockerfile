@@ -29,6 +29,7 @@ RUN chmod +x gradlew
 RUN ./gradlew installDist
 
 FROM eclipse-temurin:25.0.4_7-jre-alpine@sha256:3137541deb3cac6626b5d9a4a2187bc0d6a34312f858bd2c67dd01e732e6b682
+RUN apk upgrade --no-cache
 
 # @TODO: https://github.com/GoogleCloudPlatform/microservices-demo/issues/2517
 # Download Stackdriver Profiler Java agent
@@ -39,6 +40,10 @@ FROM eclipse-temurin:25.0.4_7-jre-alpine@sha256:3137541deb3cac6626b5d9a4a2187bc0
 
 WORKDIR /app
 COPY --from=builder /app .
+
+#Create a non-root user
+RUN addgroup -S adservice && adduser -S adservice -G adservice
+USER adservice
 
 EXPOSE 9555
 ENTRYPOINT ["/app/build/install/hipstershop/bin/AdService"]
