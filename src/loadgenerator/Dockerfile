@@ -15,7 +15,7 @@
 # Define a default value so it's not empty if the builder fails to provide it
 ARG BUILDPLATFORM=linux/amd64
 
-FROM --platform=$BUILDPLATFORM python:3.14.7-alpine@sha256:05b2b8b732ecd268fee8727a369f936f022d1321b59befd13c30ede22769dcdc AS base
+FROM --platform=$BUILDPLATFORM python:3.14.7-alpine3.24@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01 AS base
 
 FROM base AS builder
 
@@ -43,8 +43,18 @@ WORKDIR /loadgen
 
 COPY --from=builder /install /usr/local
 
+#pip is only required during the build stage
+RUN rm -rf /usr/local/lib/python3.14/site-packages/pip \
+/usr/local/lib/python3.14/site-packages/pip-*.dist-info \
+/usr/local/bin/pip \
+/usr/local/bin/pip3 \
+/usr/local/bin/pip3.14
+
 # Add application code.
 COPY locustfile.py .
+
+RUN addgroup -S loadgenerator && adduser -S loadgenerator -G loadgenerator && chown -R loadgenerator:loadgenerator /loadgen
+USER loadgenerator
 
 # enable gevent support in debugger
 ENV GEVENT_SUPPORT=True

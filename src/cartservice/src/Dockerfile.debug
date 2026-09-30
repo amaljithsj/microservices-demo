@@ -22,12 +22,13 @@ FROM build AS publish
 RUN dotnet publish cartservice.csproj -c Debug -o /out
 
 # Building final image used in running container
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:7644f992230d35cf230017189d4038c0ae0f7388b13f4f7ae1900a155bafb597 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:2d584d8147faddb0d678c5748d47953e5b8e18621ed4fb7049a91381d9d7746f AS final
 # Installing procps on the container to enable debugging of .NET Core
 RUN apt-get update \
-    && apt-get install -y unzip procps wget
+    && apt-get install -y --no-install-recommends unzip procps wget && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=publish /out .
+USER 65532:65532
 ENV ASPNETCORE_HTTP_PORTS=7070
 
 ENTRYPOINT ["dotnet", "cartservice.dll"]

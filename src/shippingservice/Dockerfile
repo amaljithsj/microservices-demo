@@ -33,6 +33,9 @@ FROM gcr.io/distroless/static
 
 WORKDIR /src
 COPY --from=builder /go/bin/shippingservice /src/shippingservice
+
+USER 65532:65532
+
 ENV APP_PORT=50051
 
 # Definition of this variable is used by 'skaffold debug' to identify a golang binary.
