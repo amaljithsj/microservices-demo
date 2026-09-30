@@ -28,6 +28,15 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 FROM base
+
+# Apply current Debian security updates
+RUN apt-get update \
+&& apt-get install -y --no-install-recommends \
+libssl3t64 \
+openssl \
+openssl-provider-legacy \
+&& rm -rf /var/lib/apt/lists/*
+
 # Enable unbuffered logging
 ENV PYTHONUNBUFFERED=1
 
