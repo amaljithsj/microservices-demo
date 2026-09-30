@@ -24,6 +24,12 @@ variable "cluster_name" {
   default     = "online-boutique"
 }
 
+variable "kubernetes_version" {
+  type        = string
+  description = "Kubernetes version for the EKS cluster"
+  default     = "1.36"
+}
+
 variable "vpc_cidr" {
   type        = string
   description = "CIDR block for the VPC"
