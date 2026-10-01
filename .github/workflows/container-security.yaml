@@ -81,6 +81,20 @@ jobs:
             -t "online-boutique/${{ matrix.service }}:${{ github.sha }}" \
             "${{ matrix.context }}"
 
+      - name: Generate SBOM
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: "online-botique/${{ matrix.service }}:${{ github.sha }}"
+          format: cyclonedx
+          output: "sbom-${{ matrix.service }}.cdx.json"
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.service }}
+          path: sbom-${{ matrix.service }}.cdx.json
+
       - name: Show Trivy vulnerability report
         uses: aquasecurity/trivy-action@v0.36.0
         with:
