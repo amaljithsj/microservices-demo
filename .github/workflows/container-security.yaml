@@ -81,11 +81,16 @@ jobs:
             -t "online-boutique/${{ matrix.service }}:${{ github.sha }}" \
             "${{ matrix.context }}"
 
+      - name: Verify container image
+        run: |
+          docker image inspect \
+            "online-boutique/${{ matrix.service  }}:${{ github.sha }}"
+
       - name: Generate SBOM
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
-          image-ref: "online-botique/${{ matrix.service }}:${{ github.sha }}"
+          image-ref: "online-boutique/${{ matrix.service }}:${{ github.sha }}"
           format: cyclonedx
           output: "sbom-${{ matrix.service }}.cdx.json"
 
