@@ -1,0 +1,139 @@
+version: 2
+
+updates:
+
+  # Node.js / npm
+  - package-ecosystem: "npm"
+    directories:
+      - "/src/currencyservice"
+      - "/src/paymentservice"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      npm-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  # Java / Gradle
+  - package-ecosystem: "gradle"
+    directory: "/src/adservice"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      gradle-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      gradle-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  # Go
+  - package-ecosystem: "gomod"
+    directories:
+      - "/src/checkoutservice"
+      - "/src/frontend"
+      - "/src/productcatalogservice"
+      - "/src/shippingservice"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      go-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      go-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  # Python / pip
+  - package-ecosystem: "pip"
+    directories:
+      - "/src/emailservice"
+      - "/src/loadgenerator"
+      - "/src/recommendationservice"
+      - "/src/shoppingassistantservice"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      pip-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      pip-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  # Docker images / base images
+  - package-ecosystem: "docker"
+    directories:
+      - "/src/adservice"
+      - "/src/cartservice/src"
+      - "/src/checkoutservice"
+      - "/src/currencyservice"
+      - "/src/emailservice"
+      - "/src/frontend"
+      - "/src/loadgenerator"
+      - "/src/paymentservice"
+      - "/src/productcatalogservice"
+      - "/src/recommendationservice"
+      - "/src/shippingservice"
+      - "/src/shoppingassistantservice"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      docker-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      docker-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  # Terraform
+  - package-ecosystem: "terraform"
+    directories:
+      - "/terraform"
+      - "/.github/terraform"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      terraform-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      terraform-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      github-actions-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      github-actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
