@@ -15,7 +15,7 @@
 # Define a default value so it's not empty if the builder fails to provide it
 ARG BUILDPLATFORM=linux/amd64
 
-FROM --platform=$BUILDPLATFORM node:22.23.2-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:26.10.0-alpine AS builder
 
 # Some packages (e.g. @google-cloud/profiler) require additional
 # deps for post-install scripts
@@ -34,7 +34,7 @@ RUN npm ci --omit=dev
 
 COPY . .
 
-FROM node:22.23.2-alpine
+FROM node:26.10.0-alpine
 
 RUN rm -rf /usr/local/lib/node_modules/npm \
     /usr/local/bin/npm \
