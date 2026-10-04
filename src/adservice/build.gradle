@@ -117,6 +117,8 @@ application {
 	applicationDistribution.into('bin') {
                 from(adService)
                 from(adServiceClient)
-                fileMode = 0755
+                filePermissions {
+                    unix("rwxr-xr-x")
+                }
         }
 }
