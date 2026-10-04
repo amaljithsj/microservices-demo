@@ -16,7 +16,7 @@ click==8.3.0
     # via flask
 configargparse==1.7.1
     # via locust
-faker==40.1.0
+faker==40.40.0
     # via -r requirements.in
 flask==3.1.3
     # via
@@ -45,7 +45,7 @@ itsdangerous==2.2.0
     # via flask
 jinja2==3.1.6
     # via flask
-locust==2.43.0
+locust==2.46.6
     # via -r requirements.in
 markupsafe==3.0.2
     # via
@@ -72,14 +72,12 @@ python-socketio[client]==5.17.0
     # via locust
 pyzmq==27.1.0
     # via locust
-requests==2.33.0
+requests==2.34.2
     # via
     #   locust
     #   python-socketio
 simple-websocket==1.1.0
     # via python-engineio
-tzdata==2025.2
-    # via faker
 urllib3==2.8.0
     # via
     #   geventhttpclient
