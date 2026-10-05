@@ -33,6 +33,7 @@ FROM base
 RUN apt-get update \
 && apt-get install -y --no-install-recommends \
 libssl3t64 \
+libpcre2-8-0 \
 openssl \
 openssl-provider-legacy \
 && rm -rf /var/lib/apt/lists/*
