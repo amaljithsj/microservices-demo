@@ -15,7 +15,7 @@
 # Define a default value so it's not empty if the builder fails to provide it
 ARG BUILDPLATFORM=linux/amd64
 
-FROM --platform=$BUILDPLATFORM python:3.15.0rc2-alpine3.24@sha256:a73535961d3114b7b2e6948ef2dd8d295b885a76d3c23e87e688856713c1cbac AS base
+FROM --platform=$BUILDPLATFORM python:3.14.7-alpine3.24@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01 AS base
 
 FROM base AS builder
 
@@ -45,12 +45,12 @@ RUN apk update \
 WORKDIR /email_server
 
 # Grab packages from builder
-COPY --from=builder /usr/local/lib/python3.15/site-packages /usr/local/lib/python3.15/site-packages
-RUN rm -rf /usr/local/lib/python3.15/site-packages/pip \
-    /usr/local/lib/python3.15/site-packages/pip-*.dist-info \
+COPY --from=builder /usr/local/lib/python3.14/ /usr/local/lib/python3.14/
+RUN rm -rf /usr/local/lib/python3.14/site-packages/pip \
+    /usr/local/lib/python3.14/site-packages/pip-*.dist-info \
     /usr/local/bin/pip \
     /usr/local/bin/pip3 \
-    /usr/local/bin/pip3.15
+    /usr/local/bin/pip3.14
 
 # Add the application
 COPY . .

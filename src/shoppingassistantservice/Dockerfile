@@ -15,7 +15,7 @@
 # Define a default value so it's not empty if the builder fails to provide it
 ARG BUILDPLATFORM=linux/amd64
 
-FROM --platform=$BUILDPLATFORM python:3.15.0rc2-slim@sha256:14684656c0069b49e897c63d52bbbe7df8a4bf189911a597403fd3b4ffeaae06 AS base
+FROM --platform=$BUILDPLATFORM python:3.14.7-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS base
 
 FROM base AS builder
 
@@ -33,6 +33,7 @@ FROM base
 RUN apt-get update \
 && apt-get install -y --no-install-recommends \
 libssl3t64 \
+libpcre2-8-0 \
 openssl \
 openssl-provider-legacy \
 && rm -rf /var/lib/apt/lists/*
