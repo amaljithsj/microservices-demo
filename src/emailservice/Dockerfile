@@ -45,7 +45,7 @@ RUN apk update \
 WORKDIR /email_server
 
 # Grab packages from builder
-COPY --from=builder /usr/local/lib/python3.14/ /usr/local/lib/python3.14/
+COPY --from=builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
 RUN rm -rf /usr/local/lib/python3.14/site-packages/pip \
     /usr/local/lib/python3.14/site-packages/pip-*.dist-info \
     /usr/local/bin/pip \
