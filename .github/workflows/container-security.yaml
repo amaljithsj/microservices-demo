@@ -168,3 +168,15 @@ jobs:
           subject-name: ghcr.io/${{ github.repository }}/${{ matrix.service }}
           subject-digest: ${{ steps.image.outputs.digest }}
           push-to-registry: true
+
+      - name: Install Cosign
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign image with Cosign
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          cosign sign --yes "${IMAGE}@${DIGEST}"
