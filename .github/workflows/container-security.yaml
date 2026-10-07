@@ -12,6 +12,8 @@ permissions:
   contents: read
   security-events: write
   packages: write
+  attestations: write
+  id-token: write
 
 jobs:
   container-scan:
@@ -149,3 +151,51 @@ jobs:
         run: |
           docker push \
             "ghcr.io/${{ github.repository }}/${{ matrix.service }}:${{ github.sha }}"
+
+      - name: Capture pushed image digest
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: image
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}/${{ matrix.service }}:${{ github.sha }}"
+          DIGEST=$(docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}' | sed 's/.*@//')
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Image digest: $DIGEST"
+
+      - name: Generate build provenance
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+
+      - name: Install Cosign
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign image with Cosign
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      - name: Verify Cosign signature
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          cosign verify "${IMAGE}@${DIGEST}" \
+            --certificate-identity="https://github.com/${{ github.repository }}/.github/workflows/container-security.yaml@refs/heads/main" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+
+      - name: Verify build provenance
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh attestation verify \
+            "oci://ghcr.io/${{ github.repository }}/${{ matrix.service }}@${{ steps.image.outputs.digest }}" \
+            --repo "${{ github.repository }}"
