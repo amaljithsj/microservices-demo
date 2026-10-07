@@ -12,6 +12,8 @@ permissions:
   contents: read
   security-events: write
   packages: write
+  attestations: write
+  id-token: write
 
 jobs:
   container-scan:
@@ -149,3 +151,20 @@ jobs:
         run: |
           docker push \
             "ghcr.io/${{ github.repository }}/${{ matrix.service }}:${{ github.sha }}"
+
+      - name: Capture pushed image digest
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: image
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}/${{ matrix.service }}:${{ github.sha }}"
+          DIGEST=$(docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}' | sed 's/.*@//')
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Image digest: $DIGEST"
+
+      - name: Generate build provenance
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
