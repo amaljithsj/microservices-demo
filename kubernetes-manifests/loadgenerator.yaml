@@ -97,3 +97,4 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: loadgenerator
+automountServiceAccountToken: false
