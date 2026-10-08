@@ -1,0 +1,157 @@
+name: Container Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release-images:
+    name: Release ${{ matrix.service }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        service:
+          - adservice
+          - cartservice
+          - checkoutservice
+          - currencyservice
+          - emailservice
+          - frontend
+          - paymentservice
+          - productcatalogservice
+          - recommendationservice
+          - shippingservice
+
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Verify tagged commit is on main
+        run: |
+          git fetch origin main --force
+          git merge-base --is-ancestor "${GITHUB_SHA}" "origin/main"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Pull existing SHA image
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          SHA_TAG: ${{ github.sha }}
+        run: |
+          docker pull "${IMAGE}:${SHA_TAG}"
+
+      - name: Capture source digest
+        id: source
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          SHA_TAG: ${{ github.sha }}
+        run: |
+          DIGEST="$(
+            docker image inspect "${IMAGE}:${SHA_TAG}"               --format '{{index .RepoDigests 0}}' |
+              sed 's/.*@//'
+          )"
+
+          test -n "${DIGEST}"
+          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
+          echo "Source digest: ${DIGEST}"
+
+      - name: Verify existing signature
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          DIGEST: ${{ steps.source.outputs.digest }}
+        run: |
+          cosign verify "${IMAGE}@${DIGEST}"             --certificate-identity="https://github.com/${{ github.repository }}/.github/workflows/container-security.yaml@refs/heads/main"             --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+
+      - name: Verify existing provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          DIGEST: ${{ steps.source.outputs.digest }}
+        run: |
+          gh attestation verify             "oci://${IMAGE}@${DIGEST}"             --repo "${GITHUB_REPOSITORY}"
+
+      - name: Ensure release tag does not already exist
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if docker manifest inspect "${IMAGE}:${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Release tag ${RELEASE_TAG} already exists for ${IMAGE}."
+            echo "Release tags are immutable; create a new version instead."
+            exit 1
+          fi
+
+      - name: Tag image with release version
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          SHA_TAG: ${{ github.sha }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          docker tag             "${IMAGE}:${SHA_TAG}"             "${IMAGE}:${RELEASE_TAG}"
+
+      - name: Publish release tag
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          docker push "${IMAGE}:${RELEASE_TAG}"
+
+      - name: Verify release tag points to same digest
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_DIGEST: ${{ steps.source.outputs.digest }}
+        run: |
+          docker pull "${IMAGE}:${RELEASE_TAG}"
+
+          RELEASE_DIGEST="$(
+            docker image inspect "${IMAGE}:${RELEASE_TAG}"               --format '{{index .RepoDigests 0}}' |
+              sed 's/.*@//'
+          )"
+
+          echo "Source digest:  ${SOURCE_DIGEST}"
+          echo "Release digest: ${RELEASE_DIGEST}"
+
+          test "${RELEASE_DIGEST}" = "${SOURCE_DIGEST}"
+
+      - name: Verify release signature and provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          DIGEST: ${{ steps.source.outputs.digest }}
+        run: |
+          cosign verify "${IMAGE}@${DIGEST}"             --certificate-identity="https://github.com/${{ github.repository }}/.github/workflows/container-security.yaml@refs/heads/main"             --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
+
+          gh attestation verify             "oci://${IMAGE}@${DIGEST}"             --repo "${GITHUB_REPOSITORY}"
+
+  create-release:
+    name: Create GitHub Release
+    needs: release-images
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "${RELEASE_TAG}"             --repo "${GITHUB_REPOSITORY}"             --title "Online Boutique ${RELEASE_TAG}"             --generate-notes
