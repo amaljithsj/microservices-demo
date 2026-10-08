@@ -6,12 +6,64 @@ on:
       - 'v*.*.*'
 
 permissions:
+  actions: read
   contents: write
   packages: write
 
 jobs:
+  wait-for-container-security:
+    name: Wait for Container Security
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Wait for successful Container Security run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          echo "Waiting for Container Security for ${COMMIT_SHA}..."
+
+          for attempt in {1..60}; do
+            RUN_JSON="$(
+              gh run list                 --repo "${GITHUB_REPOSITORY}"                 --workflow container-security.yaml                 --commit "${COMMIT_SHA}"                 --limit 20                 --json databaseId,status,conclusion,headSha,event
+            )"
+
+            RUN="$(
+              echo "${RUN_JSON}" |
+                jq -r '.[] | select(.headSha == "'"${COMMIT_SHA}"'" and .event == "push") | @json' |
+                head -n 1
+            )"
+
+            if [ -n "${RUN}" ]; then
+              STATUS="$(echo "${RUN}" | jq -r '.status')"
+              CONCLUSION="$(echo "${RUN}" | jq -r '.conclusion')"
+              RUN_ID="$(echo "${RUN}" | jq -r '.databaseId')"
+
+              echo "Container Security run ${RUN_ID}: status=${STATUS}, conclusion=${CONCLUSION}"
+
+              if [ "${STATUS}" = "completed" ]; then
+                if [ "${CONCLUSION}" = "success" ]; then
+                  echo "Container Security completed successfully."
+                  exit 0
+                fi
+
+                echo "Container Security failed with conclusion: ${CONCLUSION}"
+                exit 1
+              fi
+            else
+              echo "No Container Security run found yet."
+            fi
+
+            echo "Waiting 15 seconds..."
+            sleep 15
+          done
+
+          echo "Timed out waiting for Container Security."
+          exit 1
+
   release-images:
     name: Release ${{ matrix.service }}
+    needs: wait-for-container-security
     runs-on: ubuntu-24.04
 
     strategy:
@@ -88,18 +140,40 @@ jobs:
         run: |
           gh attestation verify             "oci://${IMAGE}@${DIGEST}"             --repo "${GITHUB_REPOSITORY}"
 
-      - name: Ensure release tag does not already exist
+      - name: Check existing release tag
+        id: existing
         env:
           IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
           RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_DIGEST: ${{ steps.source.outputs.digest }}
         run: |
           if docker manifest inspect "${IMAGE}:${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "Release tag ${RELEASE_TAG} already exists for ${IMAGE}."
-            echo "Release tags are immutable; create a new version instead."
-            exit 1
+            echo "Release tag ${RELEASE_TAG} already exists. Pulling it for digest comparison."
+
+            docker pull "${IMAGE}:${RELEASE_TAG}"
+
+            RELEASE_DIGEST="$(
+              docker image inspect "${IMAGE}:${RELEASE_TAG}"                 --format '{{index .RepoDigests 0}}' |
+                sed 's/.*@//'
+            )"
+
+            echo "Existing release digest: ${RELEASE_DIGEST}"
+            echo "Source digest:            ${SOURCE_DIGEST}"
+
+            if [ "${RELEASE_DIGEST}" != "${SOURCE_DIGEST}" ]; then
+              echo "ERROR: Existing release tag points to a different digest."
+              exit 1
+            fi
+
+            echo "Existing release tag already points to the correct digest."
+            echo "already_released=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Release tag does not exist yet."
+            echo "already_released=false" >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Tag image with release version
+        if: steps.existing.outputs.already_released != 'true'
         env:
           IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
           SHA_TAG: ${{ github.sha }}
@@ -108,6 +182,7 @@ jobs:
           docker tag             "${IMAGE}:${SHA_TAG}"             "${IMAGE}:${RELEASE_TAG}"
 
       - name: Publish release tag
+        if: steps.existing.outputs.already_released != 'true'
         env:
           IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
           RELEASE_TAG: ${{ github.ref_name }}
@@ -136,7 +211,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.service }}
-          RELEASE_TAG: ${{ github.ref_name }}
           DIGEST: ${{ steps.source.outputs.digest }}
         run: |
           cosign verify "${IMAGE}@${DIGEST}"             --certificate-identity="https://github.com/${{ github.repository }}/.github/workflows/container-security.yaml@refs/heads/main"             --certificate-oidc-issuer="https://token.actions.githubusercontent.com"
@@ -154,4 +228,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "GitHub Release ${RELEASE_TAG} already exists."
+            exit 0
+          fi
+
           gh release create "${RELEASE_TAG}"             --repo "${GITHUB_REPOSITORY}"             --title "Online Boutique ${RELEASE_TAG}"             --generate-notes
