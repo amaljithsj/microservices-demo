@@ -1,0 +1,37 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../kubernetes-manifests
+
+images:
+  - name: adservice
+    newName: ghcr.io/amaljithsj/microservices-demo/adservice
+    digest: sha256:54926d6edcff2165e21e53b5e7410965c3975c4125d6b3ccc030549924ec4263
+  - name: cartservice
+    newName: ghcr.io/amaljithsj/microservices-demo/cartservice
+    digest: sha256:a47d21fe5fbe11eeff435d63d688a25f8aef6f65ca049cb824b6985f141b9f99
+  - name: checkoutservice
+    newName: ghcr.io/amaljithsj/microservices-demo/checkoutservice
+    digest: sha256:c1a01af3aded24cc522c10995422fa1f312e1b6166d004155988a88a47facc1c
+  - name: currencyservice
+    newName: ghcr.io/amaljithsj/microservices-demo/currencyservice
+    digest: sha256:7da174b771fd58fbd9a94d3d8420f0081c09aed7408d3aa7198b6f4dc91defb9
+  - name: emailservice
+    newName: ghcr.io/amaljithsj/microservices-demo/emailservice
+    digest: sha256:36e8b6204abe5b4783dae892dd7891f270179c7311e3558ef4d555c5d9ab25b6
+  - name: frontend
+    newName: ghcr.io/amaljithsj/microservices-demo/frontend
+    digest: sha256:b951db7ae83d82ff63bb7577747ab0d38acf5387187ea97e5711f591cbd2945d
+  - name: paymentservice
+    newName: ghcr.io/amaljithsj/microservices-demo/paymentservice
+    digest: sha256:ca76f0b0d028dc04dcd9202afe71fac38229c567ec8af154901c0690eb552245
+  - name: productcatalogservice
+    newName: ghcr.io/amaljithsj/microservices-demo/productcatalogservice
+    digest: sha256:11677e190a641295a5e727e60a4dd0fc54a35efe0bae529e4e7ff40f027991e9
+  - name: recommendationservice
+    newName: ghcr.io/amaljithsj/microservices-demo/recommendationservice
+    digest: sha256:5dcabf1a1cb8006c6cbb146a07a3c7c995d98571a9ad680fa0ff699d7a019bc1
+  - name: shippingservice
+    newName: ghcr.io/amaljithsj/microservices-demo/shippingservice
+    digest: sha256:9b4576b6b96b967cc354956b7f7491f0ecaa833fd875b487a307d1c7035b9e9a
