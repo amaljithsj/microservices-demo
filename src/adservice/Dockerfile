@@ -28,7 +28,7 @@ COPY . .
 RUN chmod +x gradlew
 RUN ./gradlew installDist
 
-FROM eclipse-temurin:26.0.2.1_1-jre-alpine@sha256:9eedff2367194d11eddd6f14101b444945a708c986270cd5716b934596ba3a31
+FROM eclipse-temurin:27_35-jre-alpine@sha256:9d76de111573e77ac415d8344271a2e57dd19bd59c48725fa3bac38c101bd0ba
 RUN apk upgrade --no-cache
 
 # @TODO: https://github.com/GoogleCloudPlatform/microservices-demo/issues/2517
